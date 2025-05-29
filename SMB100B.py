@@ -3,6 +3,9 @@ import time
 import math
 
 class SMB100B:
+    """
+    - Initialize the class
+    """
     def __init__(self, ip='169.254.144.100'):
         self.__ip = ip
         self.__inst = None
@@ -10,12 +13,21 @@ class SMB100B:
         self.__dbm = None
 
     def set_ip(self, ip: str):
+        """
+        - Set the IP address
+        """
         self.__ip = ip
 
     def get_ip(self):
+        """
+        - Return the current IP address
+        """
         return self.__ip
 
     def connect_device(self):
+        """
+        - Connect to the device
+        """
         try:
             resource = f"TCPIP0::{self.__ip}::5025::SOCKET"
             rm = pyvisa.ResourceManager()
@@ -32,6 +44,9 @@ class SMB100B:
             return False
 
     def set_frequency(self, freq_hz):
+        """
+        - Set the output frequency(Unit: Hz)
+        """
         self.__freq_hz = freq_hz
 
         try:
@@ -45,6 +60,9 @@ class SMB100B:
             return False, e
 
     def set_power(self, dbm):
+        """
+        - Set the output power level(unit: dBm)
+        """
         self.__dbm = dbm
 
         try:
@@ -58,6 +76,9 @@ class SMB100B:
             return False, e
 
     def rf_on(self):
+        """
+        - Enable RF output
+        """
         try:
             self.__inst.write("OUTP ON")
             print("[RF 출력] ON")
@@ -67,6 +88,9 @@ class SMB100B:
             return False, e
 
     def rf_off(self):
+        """
+        - Disable RF output
+        """
         try:
             self.__inst.write("OUTP OFF")
             print("[RF 출력] OFF")
@@ -76,6 +100,9 @@ class SMB100B:
             return False, e
 
     def query_status(self):
+        """
+        - Return the current status(frequency, power, RMS voltage, RF state)
+        """
         if not self.connect_device():
             return
         try:
@@ -102,20 +129,27 @@ class SMB100B:
             return  False, e
 
     def get_frequency(self):
+        """
+        - Return the currently set output frequency(unit: Hz)
+        """
         return float(self.__inst.query("SOUR:FREQ?"))
 
     def get_power(self):
+        """
+        - Return the currently set output power(unit: dBm)
+        """
         return float(self.__inst.query("SOUR:POW?"))
 
     def get_output_status(self):
+        """
+        - Return True if RF output is ON, False otherwise
+        """
         return self.__inst.query("OUTP?").strip() == "1"
 
     def close(self):
+        """
+        - Close the connection to the device
+        """
         if self.__inst:
             self.__inst.close()
             print("[연결 종료]")
-
-if __name__ == "__main__":
-    sgu = SMB100B(ip='192.168.0.5')
-    sgu.connect_device()
-    sgu.close()

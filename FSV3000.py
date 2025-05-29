@@ -4,6 +4,9 @@ from datetime import datetime
 
 class FSV3000:
     def __init__(self, ip='192.168.0.6'):
+        """
+        - Initialize the class
+        """
         self.__ip = ip
         self.__inst = None
         self.__center_freq_hz = None
@@ -20,12 +23,21 @@ class FSV3000:
         self.sau_usb_dir = "D:/"
 
     def set_ip(self, ip: str):
+        """
+        - Set the IP address
+        """
         self.__ip = ip
 
     def get_ip(self):
+        """
+        - Return the current IP address
+        """
         return self.__ip
 
     def connect_device(self):
+        """
+        - Connect to the device
+        """
         try:
             resource = f"TCPIP0::{self.__ip}::5025::SOCKET"
             rm = pyvisa.ResourceManager()
@@ -39,9 +51,12 @@ class FSV3000:
 
         except Exception as e:
             print(f"[FSV3000 연결 실패] {e}")
-            return False, e
+            return False
 
     def set_frequency(self, center_freq_hz):
+        """
+        - Set the center frequency(unit: Hz)
+        """
         self.__center_freq_hz = center_freq_hz
         try:
             self.__inst.write(f"FREQ:CENT {self.__center_freq_hz}")
@@ -53,6 +68,9 @@ class FSV3000:
             return False, e
 
     def set_span(self, span_hz):
+        """
+        - Set the frequency span(unit: Hz)
+        """
         self.__span_hz = span_hz
         try:
             self.__inst.write(f"FREQ:SPAN {self.__span_hz}")
@@ -64,6 +82,9 @@ class FSV3000:
             return False, e
 
     def set_amplitude(self, ref_level_dbm):
+        """
+        - Set the reference level(unit: dBm)
+        """
         self.__ref_level_dbm = ref_level_dbm
         try:
             self.__inst.write(f"DISP:WIND:TRAC:Y:RLEV {self.__ref_level_dbm}")
@@ -74,18 +95,27 @@ class FSV3000:
             print(f"[오류 - Level 설정] {e}")
 
     def set_rbw_spectrum(self, rbw):
+        """
+        - Set resolution bandwidth for spectrum measurement(unit: Hz)
+        """
         self.__rbw_spectrum = rbw
 
         self.__inst.write(f"SENS:BAND:RES {self.__rbw_spectrum}")
         print(f"[Spectrum RBW 설정] {self.__rbw_spectrum} Hz")
 
     def set_vbw_spectrum(self, vbw):
+        """
+        - Set video bandwidth for spectrum measurement(unit: Hz)
+        """
         self.__vbw_spectrum = vbw
 
         self.__inst.write(f"SENS:BAND:VID {self.__vbw_spectrum}")
         print(f"[Spectrum VBW 설정] {self.__vbw_spectrum} Hz")
 
     def set_resolution_bw(self, rbw_ratio):
+        """
+        - Set the RBW ratio for phase noise or jitter measurement(unit: %)
+        """
         self.__rbw_ratio = rbw_ratio
         try:
             self.__inst.write(f"SENS:LIST:BWID:RAT {self.__rbw_ratio}")
@@ -97,10 +127,16 @@ class FSV3000:
             return False, e
 
     def set_verify_off(self):
+        """
+        - Turn off automatic verification for frequency and level
+        """
         self.__inst.write("SENS:FREQ:VER:STAT OFF")
         self.__inst.write("SENS:POW:RLEV:VER:STAT OFF")
 
     def single_sweep(self):
+        """
+        - Perform a single sweep
+        """
         try:
             self.__inst.write("INIT:CONT OFF")
             self.__inst.write("INIT:IMM")
@@ -113,6 +149,9 @@ class FSV3000:
             return False, e
 
     def continuous_sweep(self):
+        """
+        - Enable continuous sweep mode
+        """
         try:
             self.__inst.write("INIT:CONT ON")
             print("[Continuous Sweep] 실행")
@@ -124,6 +163,9 @@ class FSV3000:
             return False, e
 
     def get_trace(self):
+        """
+        - Get trace data from the spectrum analyzer
+        """
         try:
             self.__inst.write("FORM ASC")
             data = self.__inst.query("TRAC? TRACE1")
@@ -136,6 +178,9 @@ class FSV3000:
             return False, e
 
     def auto_set_all(self):
+        """
+        - Perform full auto setup (frequency, level, span, rbw, etc...)
+        """
         try:
             self.__inst.write("INIT:CONT OFF")
             self.__inst.write("SENS:ADJ:ALL")
@@ -147,6 +192,9 @@ class FSV3000:
             return False, e
 
     def auto_set_freq(self):
+        """
+        - Automatically adjust the frequency settings
+        """
         try:
             self.__inst.write("SENS:ADJ:FREQ;*WAI")
             self.__inst.write("SENS:SWEep:OPTimize AUTO")
@@ -158,6 +206,9 @@ class FSV3000:
             return False, e
 
     def auto_set_level(self):
+        """
+        - Automatically adjust the amplitude/level settings
+        """
         try:
             self.__inst.write("SENS:ADJ:LEV;*WAI")
             print(f"[Auto Set] Level 자동 설정 실행됨")
@@ -168,6 +219,9 @@ class FSV3000:
             return False, e
 
     def set_offset_start(self, offset_start):
+        """
+        - Set the start offset frequency
+        """
         self.__offset_start = offset_start
 
         try:
@@ -178,6 +232,9 @@ class FSV3000:
             print(f"[오류 - 오프셋 시작 설정] {e}")
 
     def set_offset_stop(self, offset_stop):
+        """
+        - Set the stop offset frequency
+        """
         self.__offset_stop = offset_stop
 
         try:
@@ -188,6 +245,9 @@ class FSV3000:
             print(f"[오류 - 오프셋 종료 설정] {e}")
 
     def set_spectrum_table(self):
+        """
+        - Enable spectrum marker table window
+        """
         try:
             self.__inst.write("INIT:IMM")
             temp = self.__inst.query("LAY:ADD:WIND? '1',BEL,MTAB")
@@ -199,6 +259,9 @@ class FSV3000:
             return False, e
 
     def remove_spectrum_table(self):
+        """
+        - Remove spectrum marker table windows
+        """
         try:
             self.__inst.write("INIT:IMM")
             self.__inst.write("LAY:REM:WIND '2'")
@@ -213,6 +276,9 @@ class FSV3000:
             return False, e
 
     def set_noise_table(self):
+        """
+        - Enable phase noise and spot noise table windows
+        """
         try:
             self.__inst.write("INIT:IMM")
             temp = self.__inst.query("LAY:ADD:WIND? '1',BEL,RNO")
@@ -225,6 +291,9 @@ class FSV3000:
             return False, e
 
     def remove_noise_table(self):
+        """
+        - Remove phase noise and spot noise windows
+        """
         try:
             self.__inst.write("INIT:IMM")
             self.__inst.write("LAY:REM:WIND '2'")
@@ -239,6 +308,9 @@ class FSV3000:
             return False, e
 
     def set_spectrum(self):
+        """
+        - Switch Spectrum plot
+        """
         try:
             self.__inst.write("INST:SEL 'Spectrum'")
             time.sleep(5.0)
@@ -250,6 +322,9 @@ class FSV3000:
             return False, e
 
     def set_phase_noise(self):
+        """
+        - Switch Phase Noise plot
+        """
         try:
             self.__inst.write("INST:SEL 'PNOISE'")
             time.sleep(15.0)
@@ -263,6 +338,9 @@ class FSV3000:
             return False, e
 
     def set_jitter(self, offset_start, offset_stop, rbw_ratio):
+        """
+        - Return RMS jitter(unit: ps)
+        """
         self.__offset_start = offset_start
         self.__offset_stop = offset_stop
         self.__rbw_ratio = rbw_ratio
@@ -290,6 +368,9 @@ class FSV3000:
         return jitter_ps
 
     def capture_spectrum(self, path, postfix=None):
+        """
+        - Capture and save spectrum screenshot to file path
+        """
         nowtime = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.__usb_path = path
         try:
@@ -307,6 +388,9 @@ class FSV3000:
             return False, e
 
     def capture_phase_noise(self, path, postfix=None):
+        """
+        - Capture and save phase noise screenshot to file path
+        """
         nowtime = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.__usb_path = path
         try:
@@ -314,7 +398,8 @@ class FSV3000:
             time.sleep(15.0)  # Ensure time for phase noise initialization
             self.__inst.write("HCOP:DEST 'MMEM'")
             self.__inst.write("HCOP:DEV:LANG JPG")
-            self.__inst.write(f"MMEM:NAME '{self.__usb_path}/{f"{postfix}" if postfix else ''}phase_noise_{nowtime}'")
+            self.__inst.write(f"MMEM:NAME '{self.__usb_path}/{f"{postfix}" if postfix else ''}"
+                              f"phase_noise_{nowtime}'")
             self.__inst.write("HCOP:IMM")
             print(f"[Phase Noise Capture] 파일 저장: {self.__usb_path}")
             return True
@@ -324,6 +409,9 @@ class FSV3000:
             return False, e
 
     def query_status(self):
+        """
+        - Return current analyzer settings (frequency, span, level, RBW)
+        """
         try:
             freq = float(self.__inst.query("FREQ:CENT?").strip())
             span = float(self.__inst.query("FREQ:SPAN?").strip())
@@ -343,6 +431,9 @@ class FSV3000:
             print(f"[오류 - 상태 확인] {e}")
 
     def set_marker(self, freq_hz):
+        """
+        - Set marker at a specific frequency
+        """
         self.__freq_hz = freq_hz
         try:
             self.__inst.write(f"CALC:MARK1:X {self.__freq_hz}")
@@ -354,6 +445,9 @@ class FSV3000:
             return False, e
 
     def marker_peak_search(self):
+        """
+        - Move marker to peak value
+        """
         try:
             self.__inst.write("CALC:MARK:MAX")
             print("[피크 탐색]")
@@ -364,6 +458,9 @@ class FSV3000:
             return  False, e
 
     def get_marker(self):
+        """
+        - Get current marker frequency position
+        """
         try:
             result = self.__inst.query("CALC:MARK1:X?").strip()
             print(f"[Marker 위치] {float(result):.3e} Hz")
@@ -374,6 +471,9 @@ class FSV3000:
             return False, e
 
     def get_marker_value(self):
+        """
+        - Get current marker power value in dBm
+        """
         try:
             #value = self.__inst.query("CALC:MARK:Y?")
             value = self.__inst.query("CALC:MARK1:Y?").strip()
@@ -385,6 +485,9 @@ class FSV3000:
             return e
 
     def get_all_markers(self):
+        """
+        - Get current marker from all active markers
+        """
         try:
             markers_data = []
             self.__inst.query("CALC:MARK:COUN? ")
@@ -407,6 +510,9 @@ class FSV3000:
             return False, e
 
     def get_spot_noise(self):
+        """
+        - Return spot noise offset and level values
+        """
         sno_data = []
 
         for i in range(1, 6):
@@ -425,18 +531,23 @@ class FSV3000:
                 except ValueError:
                     phase_noise = 1.0
 
-            sno_data.append({"SNO": f"M{i}", "Offset_freq_Hz": offset_freq, "Phase_noise_dBc/Hz": phase_noise})
+            sno_data.append({"SNO": f"M{i}", "Offset_freq_Hz": offset_freq,
+                             "Phase_noise_dBc/Hz": phase_noise})
         return sno_data
 
     def buff_clear(self):
+        """
+        - Clear instrument status and error buffer
+        """
         self.__inst.write("*CLS")
 
     def close(self):
+        """
+        -  Close connection to the instrument
+        """
         if self.__inst:
             self.__inst.close()
             print("[연결 종료]")
 
 if __name__ == "__main__":
     sau = FSV3000(ip='192.168.0.6')
-    sau.connect_device()
-    sau.close()

@@ -13,6 +13,9 @@ from SPI import write_register, read_register
 
 class Application:
     def __init__(self):
+        """
+        - Device IP address variables for each equipment
+        """
         self.__device_ip = {
             "E36313A - 1":  StringVar(value = "192.168.0.3"),
             "E36313A - 2":  StringVar(value = "192.168.0.4"),
@@ -20,6 +23,7 @@ class Application:
             "FSV3000":      StringVar(value = "192.168.0.6"),
         }
 
+        # Register settings and default values
         self.reg_settings = {
             0: ("0111011100011001", {
                 4: IntVar(value=1), 6: IntVar(value=0)}),
@@ -31,6 +35,7 @@ class Application:
             })
         }
 
+        # kp_dco parameter variables
         self.__var_kp = {
             "value": IntVar(value=7),
             "sweep": BooleanVar(value=False),
@@ -39,6 +44,7 @@ class Application:
             "step":  IntVar(value=1),
         }
 
+        # ki_dco parameter variables
         self.__var_ki = {
             "value": IntVar(value=7),
             "sweep": BooleanVar(value=False),
@@ -47,6 +53,7 @@ class Application:
             "step":  IntVar(value=1),
         }
 
+        # init_dco parameter variables
         self.__var_init_dco = {
             "value": IntVar(value=135),
             "sweep": BooleanVar(value=False),
@@ -55,31 +62,38 @@ class Application:
             "step":  IntVar(value=1),
         }
 
+        # List containing all SPI parameter variable dictionaries
         self.__var_spi = [self.__var_kp, self.__var_ki, self.__var_init_dco]
 
+        # Variables for manual SPI register address and value input
         self.adv_addr = StringVar()
         self.adv_val = StringVar()
 
+        # Power supply unit variables
         self.__var_psu = {}
 
+        # Frequency unit variables for different settings
         self.__var_unit: StringVar = StringVar(value="MHz")
         self.__var_unit_center: StringVar = StringVar(value="GHz")
         self.__var_unit_span: StringVar = StringVar(value="MHz")
         self.__var_unit_offset_start: StringVar = StringVar(value="kHz")
         self.__var_unit_offset_stop: StringVar = StringVar(value="MHz")
 
+        # Frequency and sweep variables for signal generator
         self.__var_freq: DoubleVar = DoubleVar(value=205.0)
         self.__var_freq_sweep: BooleanVar = BooleanVar(value=False)
         self.__var_freq_start = DoubleVar(value=1000.0)
         self.__var_freq_stop = DoubleVar(value=1000.0)
         self.__var_freq_step = DoubleVar(value=100.0)
 
+        # Output power and sweep variables for signal generator
         self.__var_pwr = DoubleVar(value=-10.0)
         self.__var_pwr_sweep: BooleanVar = BooleanVar(value=False)
         self.__var_pwr_start = DoubleVar(value=-10.0)
         self.__var_pwr_stop = DoubleVar(value=-10.0)
         self.__var_pwr_step = DoubleVar(value=1.0)
 
+        # Directory variables for saving files
         self.__var_dir: StringVar = StringVar(value="D:\\")
         self.__var_center_freq_hz : DoubleVar = DoubleVar(value=1.0)
         self.__var_span_hz : DoubleVar = DoubleVar(value=100.0)
@@ -87,42 +101,53 @@ class Application:
         self.__var_offset_start : DoubleVar = DoubleVar(value=10.0)
         self.__var_offset_stop : DoubleVar = DoubleVar(value=100.0)
 
-        self.__var_log_dir: StringVar = StringVar(value="./result")
+        # Log directory variable
+        self.__var_log_dir: StringVar = StringVar(value="./Capstone/result")
 
+        # List to store connection status of devices
         self.connection_state: list[bool] = []
 
+        # Instantiate device objects
         self.__psu1 = E36313A()
         self.__psu2 = E36313A()
         self.__sgu = SMB100B()
         self.__sau = FSV3000()
 
     def tab_connection(self, notebook: Notebook) -> None:
+        """
+        - Create the "Device Connection" tab
+        """
         tab = Frame(notebook)
         notebook.add(tab, text="장비 연결")
 
         labels_device: list[Label] = []
         entries_ip: list[Entry] = []
 
+        # Function to update label color based on IP validity
         def on_ip_change(var, title, *args):
             if check_ip(var.get()):
                 title.configure(foreground="")
             else:
                 title.configure(foreground="red")
 
+        # Create entry and label widgets for each device IP
         for row, (device, ip) in enumerate(self.__device_ip.items()):
             entry = Entry(tab, textvariable=ip)
             label = Label(tab, text=device)
             labels_device.append(label)
             entries_ip.append(entry)
 
+            # Trace IP variable changes to update label color
             ip.trace("w", lambda *args, var=ip, title=label: on_ip_change(var, title, *args))
 
+        # Place label and entry widgets in the grid
         for idx, label, entry in zip(range(len(self.__device_ip.items())), labels_device, entries_ip):
             label.grid(row=idx, column=0, sticky=tk.E, padx=10, pady=3)
             entry.grid(row=idx, column=1, sticky=tk.W)
 
         label_info: Label = Label(tab, foreground="blue")
 
+        # Button to connect all devices
         btn_connect: Button = Button(tab, text="장비 연결", command=lambda: self.connect_all(label_info))
         btn_connect.grid(row=len(labels_device), column=0, columnspan=2, pady=8)
 
@@ -130,17 +155,22 @@ class Application:
         label_info.grid(row=len(labels_device) + 1, column=0, columnspan=2)
 
     def connect_all(self, label_info: Label):
+        """
+        - Set IP addresses for all devices
+        """
         self.__psu1.set_ip(self.__device_ip["E36313A - 1"].get())
         self.__psu2.set_ip(self.__device_ip["E36313A - 2"].get())
         self.__sgu.set_ip(self.__device_ip["SMB100B"].get())
         self.__sau.set_ip(self.__device_ip["FSV3000"].get())
 
+        # Connect each device and record connection status
         self.connection_state = []
         self.connection_state.append(self.__psu1.connect_device())
         self.connection_state.append(self.__psu2.connect_device())
         self.connection_state.append(self.__sgu.connect_device())
         self.connection_state.append(self.__sau.connect_device())
 
+        # Log connection results
         log_connect_state: list[str] = []
         for idx, state in enumerate(self.connection_state):
             if state:
@@ -151,12 +181,16 @@ class Application:
         set_label_text(label_info, "\n".join(log_connect_state))
 
     def tab_spi(self, notebook: Notebook) -> None:
+        """
+        - Create the "SPI" tab
+        """
         tab = Frame(notebook)
         notebook.add(tab, text="SPI")
 
         left_frame = Frame(tab)
         left_frame.pack(side="left", padx=10, pady=10, anchor="n")
 
+        # SPI mode options and their settings
         mode_options = [
             ("Enable DSM", 0, [("Enable", 4, 1), ("Disable", 4, 0)]),
             ("DLF Mode", 0, [("DLF update", 6, 0), ("Free running", 6, 1)]),
@@ -167,13 +201,15 @@ class Application:
             ("Retime", 15, [("Retime OFF", 10, 0), ("Retime ON", 10, 1)]),
             ("Inversion", 15, [("Inversion OFF", 11, 0), ("Inversion ON", 11, 1)]),
         ]
+
+        # Create radio buttons for each SPI mode option
         for label_text, reg, choices in mode_options:
             frame = LabelFrame(left_frame, text=label_text)
             frame.pack(fill="x", padx=5, pady=2)
             for i, (text, bit, val) in enumerate(choices):
                 Radiobutton(frame, text=text, variable=self.reg_settings[reg][1][bit], value=val).pack(side="left",
                                                                                                           padx=5)
-
+        # Create parameter entry for kp_dco, ki_dco, init_dco
         for idx, (lbl, var) in enumerate([("kp_dco (0~15):", self.__var_kp),
                                           ("ki_dco (0~15):", self.__var_ki),
                                           ("init_dco (0~1023):", self.__var_init_dco)]):
@@ -182,10 +218,14 @@ class Application:
             Label(row, text=lbl, width=18, anchor="w").grid(row= 0, column = 0)
             Entry(row, textvariable=var["value"], width=6).grid(row= 0, column = 1)
             var["frame"] = Frame(row)
+
+            # Checkbutton to enable/disable sweep for each parameter
             Checkbutton(row, text="스윕 사용", variable=var["sweep"],
                                 command=lambda index=idx: toggle_frame(self.__var_spi[index]["frame"],
                                                                        self.__var_spi[index]["sweep"].get())) \
                     .grid(row=0, column=2, sticky="w", padx=5)
+
+            # Sweep range entry fields
             for row_idx, (label, val) in enumerate([("시작", var["start"]),
                                                 ("종료", var["stop"]),
                                                 ("스텝", var["step"])]):
@@ -194,6 +234,7 @@ class Application:
             var["frame"].grid(row=1, column = 0, columnspan = 3)
             toggle_frame(var["frame"], var["sweep"].get())
 
+        # Manual SPI register input section
         adv_frame = LabelFrame(left_frame, text="수동 입력")
         adv_frame.pack(fill="x", padx=5, pady=5)
         Label(adv_frame, text="주소 (Dec) :").grid(row=0, column=0, padx=5, sticky="e")
@@ -205,11 +246,13 @@ class Application:
         self.status_label = Label(left_frame, text="", font=("Arial", 10))
         self.status_label.pack(pady=5)
 
+        # Button to write all register values
         Button(left_frame, text="레지스터 쓰기", command=self.write_all_registers).pack(pady=5)
 
         right_frame = Frame(tab)
         right_frame.pack(side="right", padx=10, pady=10, anchor="n")
 
+        # Treeview to display register address and value
         self.tree = Treeview(right_frame, columns=("Address", "Value"), show="headings", height=20)
         self.tree.heading("Address", text="Address")
         self.tree.heading("Value", text="Value")
@@ -217,15 +260,20 @@ class Application:
         self.tree.column("Value", width=100, anchor="center")
         self.tree.pack()
 
+        # Button to read register values
         Button(right_frame, text="레지스터 읽기", command=self.read_registers).pack(pady=5)
 
     def write_all_registers(self):
+        """
+        - Write all SPI register values based on current settings
+        """
         for reg_addr, (default_bin, bit_settings) in self.reg_settings.items():
             print(reg_addr)
             binary = list(default_bin)
             for bit, var in bit_settings.items():
                 binary[15 - bit] = str(var.get())
             try:
+                # Special handling for kp, ki, and init_dco fields
                 if reg_addr == 0:
                     ki_bin = f"{int(self.__var_ki["value"].get()):04b}"
                     kp_bin = f"{int(self.__var_kp["value"].get()):04b}"
@@ -246,6 +294,9 @@ class Application:
                 self.status_label.config(text=str(e), foreground="red")
 
     def write_manual_register(self):
+        """
+        - Write to a SPI register using manually entered address and value
+        """
         try:
             addr = int(self.adv_addr.get())
             val = self.adv_val.get().upper()
@@ -259,6 +310,9 @@ class Application:
             self.status_label.config(text=f"입력 오류: {e}", foreground="red")
 
     def read_registers(self):
+        """
+        - Read SPI registers and update GUI with values
+        """
         try:
             a = read_register(2, 20)
             read_values = [f"{a[i]:02X}{a[i + 1]:02X}" for i in range(0, 40, 2)]
@@ -288,6 +342,9 @@ class Application:
             self.tree.insert("", "end", values=("오류", str(e)))
 
     def tab_E36313A(self, notebook: Notebook) -> None:
+        """
+        - Create the "Power Supply Setting (E36313A)" tab
+        """
         tab = Frame(notebook)
         notebook.add(tab, text="전원 설정 (E36313A)")
 
@@ -300,6 +357,7 @@ class Application:
             ctrl = Frame(frame_psu)
             ctrl.grid(row=0, column=0, sticky=tk.W, columnspan=3)
 
+            # Buttons for applying settings and turning channels on/off
             Button(ctrl, text="전체 설정 적용", command=lambda  pk=key_psu: self.apply_setting_all(pk)).pack(side="left", padx=4)
             Button(ctrl, text="전체 ON", command=lambda pk=key_psu: self.channel_on_all(pk)).pack(side="left", padx=4)
             Button(ctrl, text="전체 OFF", command=lambda pk=key_psu: self.channel_off_all(pk)).pack(side="left", padx=4)
@@ -310,11 +368,13 @@ class Application:
                 f_ch = LabelFrame(frame_psu, text=f"채널 {idx_ch+1}")
                 f_ch.grid(row=1, column=idx_ch, padx=4, pady=4, sticky=tk.N)
 
+                # Variables for each channel's settings
                 v: dict[str, DoubleVar | BooleanVar | Frame] = {k: tk.DoubleVar() for k in ("voltage", "current", "ovp", "start", "stop", "step")}
                 v["ocp"] = tk.BooleanVar()
                 v["sweep"] = tk.BooleanVar()
                 self.__var_psu[key_psu][key_ch] = v
 
+                # Default values for channel settings
                 v["voltage"].set(0.9)
                 v["current"].set(0.1)
                 v["ovp"].set(10)
@@ -323,6 +383,8 @@ class Application:
                 v["step"].set(0.1)
 
                 row = 0
+
+                # Entry fields for voltage, current, and OVP
                 for label, key, unit in [("전압", "voltage", "V"),
                                          ("전류", "current", "A"),
                                          ("OVP", "ovp",     "V")]:
@@ -331,9 +393,11 @@ class Application:
                     Label(f_ch, text=unit).grid(row=row, column=2, sticky="w")
                     row += 1
 
+                # Checkbutton for OCP
                 Checkbutton(f_ch, text="OCP 사용", variable=v["ocp"]).grid(row=row, column=0, columnspan=3, sticky="w")
                 row += 1
 
+                # Checkbutton to enable/disable sweep for channel
                 Checkbutton(f_ch, text="스윕 사용", variable=v["sweep"],
                                 command=lambda pk=key_psu, ch=key_ch: toggle_frame(self.__var_psu[pk][ch]["sweep_frame"],
                                                                                    self.__var_psu[pk][ch]["sweep"].get())) \
@@ -343,6 +407,7 @@ class Application:
                 v["sweep_frame"] = Frame(f_ch)
                 v["sweep_frame"].grid(row=row, column=0, columnspan=3, pady=4)
 
+                # Sweep range entry fields
                 for row_idx_2, (label, key) in enumerate([("시작", "start"),
                                                           ("종료", "stop"),
                                                           ("스텝", "step")]):
@@ -352,6 +417,8 @@ class Application:
 
                 btn_box: Frame = Frame(f_ch)
                 btn_box.grid(row=row+3, column=0, columnspan=3)
+
+                # Buttons to turn channel output on/off and apply settings
                 Button(btn_box, text="출력 ON", command=lambda pk=key_psu, ch=key_ch: self.channel_on(pk, ch)).pack(fill="x")
                 Button(btn_box, text="출력 OFF", command=lambda pk=key_psu, ch=key_ch: self.channel_off(pk, ch)).pack(fill="x")
                 Button(btn_box, text="설정 적용", command=lambda pk=key_psu, ch=key_ch: self.apply_setting(pk, ch)).pack(fill="x")
@@ -362,18 +429,27 @@ class Application:
                 .grid(row=idx_psu * 2 + 1, column=0, sticky="w")
 
     def channel_on(self, pk, ch):
+        """
+        - Turn on output for a specific channel
+        """
         if pk == 'E36313A - 1':
             self.__psu1.pwr_on(ch)
         elif pk == 'E36313A - 2':
             self.__psu2.pwr_on(ch)
 
     def channel_off(self, pk, ch):
+        """
+        - Turn off output for a specific channel
+        """
         if pk == 'E36313A - 1':
             self.__psu1.pwr_off(ch)
         elif pk == 'E36313A - 2':
             self.__psu2.pwr_off(ch)
 
     def channel_on_all(self, pk):
+        """
+        - Turn on all channels for a power supply
+        """
         if pk == 'E36313A - 1':
             for i in range (1, 4):
                 self.__psu1.pwr_on(i)
@@ -382,6 +458,9 @@ class Application:
                 self.__psu2.pwr_on(i)
 
     def channel_off_all(self, pk):
+        """
+        - Turn off all channels for a power supply
+        """
         if pk == 'E36313A - 1':
             for i in range (1, 4):
                 self.__psu1.pwr_off(i)
@@ -390,6 +469,9 @@ class Application:
                 self.__psu2.pwr_off(i)
 
     def apply_setting(self, pk: str, ch: int):
+        """
+        - Apply channel settings for a specific channel
+        """
         ch_settings = {'voltage': self.__var_psu[pk][ch]["voltage"].get(),
                        'current': self.__var_psu[pk][ch]["current"].get(),
                        'ovp': self.__var_psu[pk][ch]["ovp"].get(),
@@ -400,6 +482,9 @@ class Application:
             self.__psu2.apply_channel_setting(ch_settings, ch)
 
     def apply_setting_all(self, pk):
+        """
+        - Apply channel settings to all channels
+        """
         for i in range(1, 4):
             ch_settings = {'voltage': self.__var_psu[pk][i]["voltage"].get(),
                            'current': self.__var_psu[pk][i]["current"].get(),
@@ -411,6 +496,9 @@ class Application:
                 self.__psu2.apply_channel_setting(ch_settings, i)
 
     def tab_SMB100B(self, notebook: Notebook) -> None:
+        """
+        - Create the "RF Setting (SMB100B)" tab
+        """
         tab = Frame(notebook)
         notebook.add(tab, text="RF 설정 (SMB100B)")
 
@@ -426,6 +514,8 @@ class Application:
                                                                                    self.__var_freq_sweep.get()))
 
         frame_freq_sweep: Frame = Frame(frame_freq)
+
+        # Entry fields for frequency sweep range
         for row_idx, (label, var) in enumerate([("시작", self.__var_freq_start),
                                                 ("종료", self.__var_freq_stop),
                                                 ("스텝", self.__var_freq_step)]):
@@ -447,6 +537,8 @@ class Application:
                                                                                   self.__var_pwr_sweep.get()))
 
         frame_pwr_sweep: Frame = Frame(frame_pwr)
+
+        # Entry fields for output power sweep range
         for row_idx, (label, var) in enumerate([("시작", self.__var_pwr_start),
                                                 ("종료", self.__var_pwr_stop),
                                                 ("스텝", self.__var_pwr_step)]):
@@ -464,6 +556,7 @@ class Application:
         frame_ctrl: LabelFrame = LabelFrame(tab, text="설정 적용")
         frame_ctrl.grid(row=1, column=0, padx=10, pady=10)
 
+        # Buttons to apply frequency and power settings, and to turn RF output on/off
         btn_apply_freq: Button = Button(frame_ctrl, text="주파수 설정 적용", command=lambda : self.__sgu.set_frequency(change_freq_unit(self.__var_freq.get(), self.__var_unit.get())))
         btn_apply_level: Button = Button(frame_ctrl, text="출력레벨 설정 적용", command=lambda : self.__sgu.set_power(self.__var_pwr.get()))
         btn_rf_on: Button = Button(frame_ctrl, text="RF 출력 ON", command=lambda : self.__sgu.rf_on())
@@ -475,6 +568,9 @@ class Application:
         btn_rf_off.grid(row=1, column=1, padx=5, pady=5)
 
     def tab_FSV3000(self, notebook: Notebook) -> None:
+        """
+        - Create the "Spectrum Analyzer (FSV3000)" tab
+        """
         tab = Frame(notebook)
         notebook.add(tab, text="스펙트럼 분석기 (FSV3000)")
 
@@ -486,6 +582,8 @@ class Application:
         entry_sau_dir: Entry = Entry(frame_sau_dir, textvariable=self.__var_dir, width=30)
 
         frame_ctrl: Frame = Frame(frame_capture)
+
+        # Buttons for auto set and screen capture
         btn_auto_set: Button = Button(frame_ctrl, text="Auto Set - All", command=self.__sau.auto_set_all)
         btn_capture_spec: Button = Button(frame_ctrl, text="Power Spectrum Capture", command=lambda : self.__sau.capture_spectrum(self.__var_dir.get()))
         btn_capture_noise: Button = Button(frame_ctrl, text="Phase Noise Capture", command=lambda : self.__sau.capture_phase_noise(self.__var_dir.get()))
@@ -505,6 +603,7 @@ class Application:
         frame_btn_auto_set = Frame(frame_auto_set)
         frame_btn_auto_set.pack(pady=10)
 
+        # Buttons for auto setting frequency and level
         btn_auto_all: Button = Button(frame_btn_auto_set, text="ALL",
                                       command=lambda: self.__sau.auto_set_all())
         btn_auto_freq: Button = Button(frame_btn_auto_set, text="FREQ",
@@ -516,7 +615,7 @@ class Application:
         btn_auto_freq.pack(side="left", padx=5)
         btn_auto_level.pack(side="left", padx=5)
 
-
+        # Parameter setting section for spectrum analyzer
         frame_setting: LabelFrame = LabelFrame(tab, text="파라미터 설정")
         frame_setting.pack(fill="both", padx=10, pady=10)
 
@@ -601,6 +700,7 @@ class Application:
         frame_spectrum_btn = Frame(frame_scene)
         frame_spectrum_btn.pack(pady=10)
 
+        # Buttons for spectrum plot and marker table
         btn_set_spec: Button = Button(frame_spectrum_btn, text="Set Spectrum Plot", command=lambda: self.__sau.set_spectrum())
         btn_set_marker_table: Button = Button(frame_spectrum_btn, text="Set Marker Table", command=lambda: self.__sau.set_spectrum_table())
         btn_remove_marker_table: Button = Button(frame_spectrum_btn, text="Remove Marker Table", command=lambda: self.__sau.remove_spectrum_table())
@@ -612,6 +712,7 @@ class Application:
         frame_phase_btn = Frame(frame_scene)
         frame_phase_btn.pack(pady=10)
 
+        # Buttons for phase noise plot and table
         btn_set_noise: Button = Button(frame_phase_btn, text="Set Phase Noise Plot", command=lambda: self.__sau.set_phase_noise())
         btn_set_phase_table: Button = Button(frame_phase_btn, text="Set Phase Table", command=lambda: self.__sau.set_noise_table())
         btn_remove_phase_table: Button = Button(frame_phase_btn, text="Remove Phase Table", command=lambda: self.__sau.remove_noise_table())
@@ -626,6 +727,7 @@ class Application:
         frame_setting_btn = Frame(frame_setting_btn)
         frame_setting_btn.pack(pady=10)
 
+        # Buttons for sweep, marker search, jitter, etc.
         btn_single_sweep: Button = Button(frame_setting_btn, text="Single Sweep", command=lambda: self.__sau.single_sweep())
         btn_continuous_sweep: Button = Button(frame_setting_btn, text="Continous Sweep", command=lambda: self.__sau.continuous_sweep())
         btn_marker_peak_search: Button = Button(frame_setting_btn, text="Search Marker Peak", command=lambda: self.__sau.marker_peak_search())
@@ -642,6 +744,9 @@ class Application:
         btn_set_jitter.pack(side="left", padx=5)
 
     def tab_measurement(self, notebook: Notebook) -> None:
+        """
+        - Create the "Measurement" tab
+        """
         tab = Frame(notebook)
         notebook.add(tab, text="측정 실행")
 
@@ -661,79 +766,83 @@ class Application:
         set_label_text(label_status, "대기 중...")
         label_status.pack()
 
+        # Button to start measurement
         btn_meas: Button = Button(tab, text="측정 시작", command=lambda: measurement(
-                                                                                 self.__var_init_dco["value"].get(),
-                                                                                 self.__var_init_dco["sweep"].get(),
-                                                                                 self.__var_init_dco["start"].get(),
-                                                                                 self.__var_init_dco["stop"].get(),
-                                                                                 self.__var_init_dco["step"].get(),
-                                                                                 self.reg_settings[0][1][4].get(),
-                                                                                 self.reg_settings[0][1][6].get(),
-                                                                                 self.__var_kp["value"].get(),
-                                                                                 self.__var_kp["sweep"].get(),
-                                                                                 self.__var_kp["start"].get(),
-                                                                                 self.__var_kp["stop"].get(),
-                                                                                 self.__var_kp["step"].get(),
-                                                                                 self.__var_ki["value"].get(),
-                                                                                 self.__var_ki["sweep"].get(),
-                                                                                 self.__var_ki["start"].get(),
-                                                                                 self.__var_ki["stop"].get(),
-                                                                                 self.__var_ki["step"].get(),
-                                                                                 self.__sau,
-                                                                                 self.__sgu,
-                                                                                 self.__psu1,
-                                                                                 self.__psu2,
-                                                                                 self.__var_log_dir.get(),
-                                                                                 self.__var_dir.get(),
-                                                                                 self.__var_freq_sweep.get(),
-                                                                                 change_freq_unit(self.__var_freq.get(), self.__var_unit.get()),
-                                                                                 change_freq_unit(self.__var_freq_start.get(), self.__var_unit.get()),
-                                                                                 change_freq_unit(self.__var_freq_stop.get(), self.__var_unit.get()),
-                                                                                 change_freq_unit(self.__var_freq_step.get(), self.__var_unit.get()),
-                                                                                 change_freq_unit(self.__var_offset_start.get(), self.__var_unit_offset_start.get()),
-                                                                                 change_freq_unit(self.__var_offset_stop.get(), self.__var_unit_offset_stop.get()),
-                                                                                 change_freq_unit(self.__var_span_hz.get(), self.__var_unit_span.get()),
-                                                                                 self.__var_rbw_ratio.get(),
-                                                                                 self.__var_psu['E36313A - 1'][1]["sweep"].get(),
-                                                                                 self.__var_psu['E36313A - 1'][1]["voltage"].get(),
-                                                                                 self.__var_psu['E36313A - 1'][1]['start'].get(),
-                                                                                 self.__var_psu['E36313A - 1'][1]['stop'].get(),
-                                                                                 self.__var_psu['E36313A - 1'][1]['step'].get(),
-                                                                                 self.__var_pwr.get(),
-                                                                                 self.__var_psu['E36313A - 1'][1]['current'].get(),
-                                                                                 self.__var_psu['E36313A - 1'][2]["sweep"].get(),
-                                                                                 self.__var_psu['E36313A - 1'][2]["voltage"].get(),
-                                                                                 self.__var_psu['E36313A - 1'][2]['start'].get(),
-                                                                                 self.__var_psu['E36313A - 1'][2]['stop'].get(),
-                                                                                 self.__var_psu['E36313A - 1'][2]['step'].get(),
-                                                                                 self.__var_psu['E36313A - 1'][2]['current'].get(),
-                                                                                 self.__var_psu['E36313A - 1'][3]["sweep"].get(),
-                                                                                 self.__var_psu['E36313A - 1'][3]["voltage"].get(),
-                                                                                 self.__var_psu['E36313A - 1'][3]['start'].get(),
-                                                                                 self.__var_psu['E36313A - 1'][3]['stop'].get(),
-                                                                                 self.__var_psu['E36313A - 1'][3]['step'].get(),
-                                                                                 self.__var_psu['E36313A - 1'][3]['current'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][1]["sweep"].get(),
-                                                                                 self.__var_psu['E36313A - 2'][1]["voltage"].get(),
-                                                                                 self.__var_psu['E36313A - 2'][1]['start'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][1]['stop'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][1]['step'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][1]['current'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][2]["sweep"].get(),
-                                                                                 self.__var_psu['E36313A - 2'][2]["voltage"].get(),
-                                                                                 self.__var_psu['E36313A - 2'][2]['start'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][2]['stop'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][2]['step'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][2]['current'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][3]["sweep"].get(),
-                                                                                 self.__var_psu['E36313A - 2'][3]["voltage"].get(),
-                                                                                 self.__var_psu['E36313A - 2'][3]['start'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][3]['stop'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][3]['step'].get(),
-                                                                                 self.__var_psu['E36313A - 2'][3]['current'].get()))
+                     self.__var_init_dco["value"].get(),
+                     self.__var_init_dco["sweep"].get(),
+                     self.__var_init_dco["start"].get(),
+                     self.__var_init_dco["stop"].get(),
+                     self.__var_init_dco["step"].get(),
+                     self.reg_settings[0][1][4].get(),
+                     self.reg_settings[0][1][6].get(),
+                     self.__var_kp["value"].get(),
+                     self.__var_kp["sweep"].get(),
+                     self.__var_kp["start"].get(),
+                     self.__var_kp["stop"].get(),
+                     self.__var_kp["step"].get(),
+                     self.__var_ki["value"].get(),
+                     self.__var_ki["sweep"].get(),
+                     self.__var_ki["start"].get(),
+                     self.__var_ki["stop"].get(),
+                     self.__var_ki["step"].get(),
+                     self.__sau,
+                     self.__sgu,
+                     self.__psu1,
+                     self.__psu2,
+                     self.__var_log_dir.get(),
+                     self.__var_dir.get(),
+                     self.__var_freq_sweep.get(),
+                     change_freq_unit(self.__var_freq.get(), self.__var_unit.get()),
+                     change_freq_unit(self.__var_freq_start.get(), self.__var_unit.get()),
+                     change_freq_unit(self.__var_freq_stop.get(), self.__var_unit.get()),
+                     change_freq_unit(self.__var_freq_step.get(), self.__var_unit.get()),
+                     change_freq_unit(self.__var_offset_start.get(), self.__var_unit_offset_start.get()),
+                     change_freq_unit(self.__var_offset_stop.get(), self.__var_unit_offset_stop.get()),
+                     change_freq_unit(self.__var_span_hz.get(), self.__var_unit_span.get()),
+                     self.__var_rbw_ratio.get(),
+                     self.__var_psu['E36313A - 1'][1]["sweep"].get(),
+                     self.__var_psu['E36313A - 1'][1]["voltage"].get(),
+                     self.__var_psu['E36313A - 1'][1]['start'].get(),
+                     self.__var_psu['E36313A - 1'][1]['stop'].get(),
+                     self.__var_psu['E36313A - 1'][1]['step'].get(),
+                     self.__var_pwr.get(),
+                     self.__var_psu['E36313A - 1'][1]['current'].get(),
+                     self.__var_psu['E36313A - 1'][2]["sweep"].get(),
+                     self.__var_psu['E36313A - 1'][2]["voltage"].get(),
+                     self.__var_psu['E36313A - 1'][2]['start'].get(),
+                     self.__var_psu['E36313A - 1'][2]['stop'].get(),
+                     self.__var_psu['E36313A - 1'][2]['step'].get(),
+                     self.__var_psu['E36313A - 1'][2]['current'].get(),
+                     self.__var_psu['E36313A - 1'][3]["sweep"].get(),
+                     self.__var_psu['E36313A - 1'][3]["voltage"].get(),
+                     self.__var_psu['E36313A - 1'][3]['start'].get(),
+                     self.__var_psu['E36313A - 1'][3]['stop'].get(),
+                     self.__var_psu['E36313A - 1'][3]['step'].get(),
+                     self.__var_psu['E36313A - 1'][3]['current'].get(),
+                     self.__var_psu['E36313A - 2'][1]["sweep"].get(),
+                     self.__var_psu['E36313A - 2'][1]["voltage"].get(),
+                     self.__var_psu['E36313A - 2'][1]['start'].get(),
+                     self.__var_psu['E36313A - 2'][1]['stop'].get(),
+                     self.__var_psu['E36313A - 2'][1]['step'].get(),
+                     self.__var_psu['E36313A - 2'][1]['current'].get(),
+                     self.__var_psu['E36313A - 2'][2]["sweep"].get(),
+                     self.__var_psu['E36313A - 2'][2]["voltage"].get(),
+                     self.__var_psu['E36313A - 2'][2]['start'].get(),
+                     self.__var_psu['E36313A - 2'][2]['stop'].get(),
+                     self.__var_psu['E36313A - 2'][2]['step'].get(),
+                     self.__var_psu['E36313A - 2'][2]['current'].get(),
+                     self.__var_psu['E36313A - 2'][3]["sweep"].get(),
+                     self.__var_psu['E36313A - 2'][3]["voltage"].get(),
+                     self.__var_psu['E36313A - 2'][3]['start'].get(),
+                     self.__var_psu['E36313A - 2'][3]['stop'].get(),
+                     self.__var_psu['E36313A - 2'][3]['step'].get(),
+                     self.__var_psu['E36313A - 2'][3]['current'].get()))
         btn_meas.pack(pady=10)
 
     def show(self, window: tk.Tk = tk.Tk()) -> None:
+        """
+        - Main function to create and display the GUI window
+        """
         window.title("AMS - 측정 자동화 시스템")
 
         notebook = Notebook(window)

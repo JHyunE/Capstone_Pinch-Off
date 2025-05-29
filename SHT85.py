@@ -5,12 +5,15 @@ from sensirion_driver_adapters.i2c_adapter.i2c_channel import I2cChannel
 from sensirion_i2c_sht3x.device import Sht3xDevice
 from sensirion_i2c_sht3x.commands import (Repeatability)
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--i2c-port', '-p', default='/dev/i2c-0')
 args = parser.parse_args()
 
 def getTempHumid():
+    """
+    - Reads temperature and humidity data from SHT85
+    - Returns a tuple of (temperature, humidity)
+    """
     with LinuxI2cTransceiver(args.i2c_port) as i2c_transceiver:
         channel = I2cChannel(I2cConnection(i2c_transceiver),
                              slave_address=0x44,
@@ -33,4 +36,3 @@ def getTempHumid():
             return (a_temperature.value, a_humidity.value)
         except BaseException:
             return False
-            
